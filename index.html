@@ -44,6 +44,7 @@
     font-weight: bold;
     color: #2b6cb0;
     min-width: 140px;
+    word-break: break-all;
   }
   .mapper-row select {
     flex: 1;
@@ -53,6 +54,10 @@
     background: white;
   }
 
+  input[type="text"].clean-input {
+    width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e0;
+    border-radius: 6px; font-family: monospace; font-size: 14px; background: #fff;
+  }
   textarea {
     width: 100%; box-sizing: border-box; padding: 12px; border: 2px dashed #cbd5e0;
     border-radius: 6px; font-family: monospace; font-size: 12px; background: #f7fafc; resize: vertical;
@@ -67,7 +72,7 @@
   }
   button.btn-main:hover { background-color: #2f855a; }
   
-  #status { margin-top: 15px; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 14px; }
+  #status { margin-top: 15px; padding: 12px; border-radius: 6px; font-size: 14px; line-height: 1.5; }
   .download-link {
     display: block; margin: 8px 0; padding: 10px; background: #3182ce; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;
   }
@@ -82,13 +87,13 @@
     color: #718096;
   }
 
-  /* GATEKEEPER LOCK MODAL OVERLAY STYLE */
+  /* USER ACCESS ENTRY COVER SCREEN */
   .gatekeeper-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(26, 32, 44, 0.95); z-index: 9999;
     display: flex; align-items: center; justify-content: center;
     backdrop-filter: blur(8px);
-    transition: opacity 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
   }
   .gatekeeper-modal {
     background: white; width: 100%; max-width: 460px; padding: 35px;
@@ -98,12 +103,12 @@
   .gatekeeper-modal p { margin: 0 0 25px 0; color: #718096; font-size: 14px; text-align: center; line-height: 1.5; }
   .gatekeeper-input {
     width: 100%; padding: 12px; margin-bottom: 18px; border: 2px solid #cbd5e0;
-    border-radius: 6px; font-size: 14px; box-sizing: border-box;
+    border-radius: 6px; font-size: 14px; box-sizing: border-box; display: block;
   }
   .gatekeeper-input:focus { border-color: #3182ce; outline: none; }
   .gatekeeper-btn {
     width: 100%; padding: 14px; background: #3182ce; color: white; border: none;
-    border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer;
+    border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px;
   }
   .gatekeeper-btn:hover { background: #2b6cb0; }
 </style>
@@ -129,7 +134,7 @@
 <div class="app-container">
   <div class="header">
     <h2>3HML Mapping Pro</h2>
-    <p class="subtitle">Smart Data Mapping for Lecturers.</p>
+    <p class="subtitle">Smart Data Mapping for Lecturers</p>
   </div>
   
   <div class="card">
@@ -140,18 +145,20 @@
   </div>
 
   <div class="card" id="mapperCard" style="display: none;">
-    <label>Step 2: Connect Spreadsheet Data to PDF Fields</label>
-    <p style="font-size: 13px; color: #718096; margin-top: 0; margin-bottom: 15px;">
-      The system successfully detected fields inside your document. Select which spreadsheet column belongs to each field target below:
-    </p>
-    <div id="dynamicMapperContainer"></div>
+    <div class="input-group">
+      <label for="headerInput">Step 2a: Verify Your Spreadsheet Column Headers</label>
+      <input type="text" id="headerInput" class="clean-input" value="MATRIC NAME C1 C2 TOTAL" />
+      <small style="color: #718096; margin-top: 4px; display: block;">Modify these names to match your Excel top row exactly. Separate with spaces or tabs.</small>
+    </div>
+    
+    <label style="margin-top: 20px;">Step 2b: Connect Spreadsheet Columns to PDF Fields</label>
+    <div id="dynamicMapperContainer" style="margin-top: 10px;"></div>
   </div>
 
   <div class="card">
     <div class="input-group">
-      <label for="studentData">Step 3: Paste Your Student Scores Matrix</label>
-      <textarea id="studentData" rows="8"></textarea>
-      <small style="color: #718096; margin-top: 4px; display: block;">Ensure columns include Name, Matric Number, individual criteria, and a Total Score.</small>
+      <label for="studentData">Step 3: Paste Your Entire Excel Student Scores Matrix</label>
+      <textarea id="studentData" rows="10" placeholder="Paste all data rows here..."></textarea>
     </div>
 
     <button class="btn-main" type="button" id="processBtn">Generate 9 Moderated PDFs</button>
@@ -161,12 +168,8 @@
   <div id="downloadArea" style="margin-top: 20px; text-align: center;"></div>
 
   <footer class="footer-copyright">
-    <p>&copy; <span id="currentYear"></span> Catherine N. C. L. All rights reserved.</p>
+    <p>&copy; <span id="currentYear"></span> Catherine Nguoi C. L. All rights reserved.</p>
     <p style="font-size: 11px; margin-top: 4px; color: #a0aec0;">Released under the MIT License. Powered by PDF-Lib Framework.</p>
-    
-    <div style="margin-top: 12px;">
-      <img src="https://komarev.com/ghvc/?username=3hml-automator-project&label=APP%20VIEWS&color=blue&style=flat" alt="Visitor Counter Badge" border="0" />
-    </div>
   </footer>
 </div>
 
@@ -176,35 +179,33 @@ let pdfFormFields = [];
 let pdfBytesData = null;
 
 document.addEventListener("DOMContentLoaded", function() {
-  // Check browser session cache storage token to bypass double authorization prompts
+  // Check if session token verification parameters are active
   if (localStorage.getItem("3hml_verified_user") === "true") {
     document.getElementById("registrationLock").style.display = "none";
   }
-
   document.getElementById('currentYear').textContent = new Date().getFullYear();
   
-  // Attach safe click event listeners natively bypassing global script namespace drops
   document.getElementById('activateBtn').addEventListener('click', handleWorkspaceActivation);
   document.getElementById('processBtn').addEventListener('click', processAndInjectData);
   document.getElementById('pdfFile').addEventListener('change', analysePdfTemplateForm);
-  document.getElementById('studentData').addEventListener('input', extractSpreadsheetHeaders);
+  document.getElementById('headerInput').addEventListener('input', parseIsolatedHeaders);
   
-  const sampleData = "Name\tMatric\tCriterion 1\tCriterion 2\tCriterion 3\tTotal Score\n" +
-                     "Ali\tA101\t18\t19\t15\t52\n" +
-                     "Abu\tA102\t10\t12\t11\t33\n" +
-                     "Siti\tA103\t20\t20\t19\t59\n" +
-                     "John\tA104\t15\t15\t14\t44\n" +
-                     "Doe\tA105\t8\t10\t7\t25\n" +
-                     "Alex\tA106\t17\t18\t16\t51\n" +
-                     "Mary\tA107\t12\t11\t10\t33\n" +
-                     "Lee\tA108\t19\t19\t18\t56\n" +
-                     "Tan\tA109\t14\t13\t12\t39\n" +
-                     "Zac\tA110\t11\t10\t9\t30";
+  // Set default raw sample layout matrix properties
+  const sampleData = "MATRIC\tNAME\tC1\tC2\tTOTAL\n" +
+                     "A20EC001\tAli Bin Ahmad\t18\t19\t37\n" +
+                     "A20EC002\tAbu Bakar\t10\t12\t22\n" +
+                     "A20EC003\tSiti Aminah\t20\t20\t40\n" +
+                     "A20EC004\tJohn Doe\t15\t15\t30\n" +
+                     "A20EC005\tJane Doe\t8\t10\t18\n" +
+                     "A20EC006\tAlex Jones\t17\t18\t35\n" +
+                     "A20EC007\tMary Berry\t12\t11\t23\n" +
+                     "A20EC008\tLee Chong Wei\t19\t19\t38\n" +
+                     "A20EC009\tTan Ah Kao\t14\t13\t27\n" +
+                     "A20EC010\tZac Efron\t11\t10\t21";
   document.getElementById('studentData').value = sampleData;
-  extractSpreadsheetHeaders();
+  parseIsolatedHeaders();
 });
 
-// UPGRADED RESTRUCTURED ACTIVATION CONTROLLER
 function handleWorkspaceActivation() {
   const name = document.getElementById("regName").value.trim();
   const email = document.getElementById("regEmail").value.trim();
@@ -215,34 +216,32 @@ function handleWorkspaceActivation() {
     return;
   }
 
-  // Lift veil interface overlay immediately
+  // Clear overlay smoothly using non-intrusive style masks
   localStorage.setItem("3hml_verified_user", "true");
   document.getElementById("registrationLock").style.opacity = "0";
-  setTimeout(() => {
-    document.getElementById("registrationLock").style.display = "none";
+  setTimeout(() => { 
+    document.getElementById("registrationLock").style.display = "none"; 
   }, 300);
 
-  // Send logging profile data payload over background channel links smoothly
+  // Hidden logger frame (replace with your Google Form URL endpoint if desired)
   const googleFormBaseURL = "https://docs.google.com/forms/d/e/1FAIpQLSfp-YOUR-FORM-ID-HERE/formResponse";
-  
   const formData = new FormData();
   formData.append("entry.1749256444", name);
   formData.append("entry.1193898577", email);
   formData.append("entry.1016221176", school);
-
-  fetch(googleFormBaseURL, {
-    method: "POST",
-    mode: "no-cors",
-    body: formData
-  }).catch((e) => console.log("Silent background track active."));
+  fetch(googleFormBaseURL, { method: "POST", mode: "no-cors", body: formData }).catch((e) => console.log("Init complete."));
 }
 
-function extractSpreadsheetHeaders() {
-  const rawText = document.getElementById('studentData').value.trim();
+function parseIsolatedHeaders() {
+  const rawText = document.getElementById('headerInput').value.trim();
   if (!rawText) return;
 
-  const firstLine = rawText.split('\n')[0];
-  excelHeaders = firstLine.split(/\t|,/).map(h => h.trim()).filter(h => h.length > 0);
+  if (rawText.includes('\t')) { excelHeaders = rawText.split('\t'); }
+  else if (rawText.includes(';')) { excelHeaders = rawText.split(';'); }
+  else if (rawText.includes(',')) { excelHeaders = rawText.split(','); }
+  else { excelHeaders = rawText.split(/\s+/); }
+  
+  excelHeaders = excelHeaders.map(h => h.trim().replace(/["']/g, "")).filter(h => h.length > 0);
   
   if (pdfFormFields.length > 0) {
     renderFieldDropdownInterface();
@@ -256,7 +255,7 @@ async function analysePdfTemplateForm(event) {
   const statusDiv = document.getElementById('status');
   statusDiv.style.background = "#fffaf0";
   statusDiv.style.color = "#dd6b20";
-  statusDiv.innerHTML = "⏳ Reading layout map files and indexing tracking strings...";
+  statusDiv.innerHTML = "⏳ Reading fillable fields maps...";
 
   try {
     pdfBytesData = await new Promise((resolve) => {
@@ -265,29 +264,27 @@ async function analysePdfTemplateForm(event) {
 
     const pdfDoc = await PDFLib.PDFDocument.load(pdfBytesData);
     const form = pdfDoc.getForm();
-    
     pdfFormFields = form.getFields().map(f => f.getName());
 
     if (pdfFormFields.length === 0) {
       statusDiv.style.background = "#fff5f5";
       statusDiv.style.color = "#c53030";
-      statusDiv.innerHTML = "❌ File Error: Your PDF is flat. Go to Sejda.com or Adobe Acrobat to create empty form textboxes before using this tool.";
+      statusDiv.innerHTML = "❌ File Error: No active form fields found. Your PDF is flat.";
       document.getElementById('mapperCard').style.display = "none";
       return;
     }
 
     statusDiv.style.background = "#f0fff4";
     statusDiv.style.color = "#2f855a";
-    statusDiv.innerHTML = `✅ Successfully connected to ${pdfFormFields.length} file fields.`;
+    statusDiv.innerHTML = `✅ Connected to ${pdfFormFields.length} active PDF fields. Set mappings below in Step 2.`;
     
     document.getElementById('mapperCard').style.display = "block";
-    renderFieldDropdownInterface();
+    parseIsolatedHeaders();
 
   } catch (err) {
-    console.error(err);
     statusDiv.style.background = "#fff5f5";
     statusDiv.style.color = "#c53030";
-    statusDiv.innerHTML = "❌ Template Parsing Error. Check file encoding.";
+    statusDiv.innerHTML = "❌ Error analyzing template layout.";
   }
 }
 
@@ -300,7 +297,7 @@ function renderFieldDropdownInterface() {
     row.className = "mapper-row";
 
     const labelSpan = document.createElement('span');
-    labelSpan.innerHTML = pdfField;
+    labelSpan.innerHTML = `PDF Box: <strong>${pdfField}</strong>`;
     row.appendChild(labelSpan);
 
     const selector = document.createElement('select');
@@ -309,15 +306,18 @@ function renderFieldDropdownInterface() {
 
     const defaultOption = document.createElement('option');
     defaultOption.value = "";
-    defaultOption.innerHTML = "-- Leave Blank / Do Not Map --";
+    defaultOption.innerHTML = "-- Keep Blank / Do Not Map --";
     selector.appendChild(defaultOption);
 
     excelHeaders.forEach(header => {
       const option = document.createElement('option');
       option.value = header;
-      option.innerHTML = `Spreadsheet Column: ${header}`;
+      option.innerHTML = `Spreadsheet Column ➔ [${header}]`;
       
-      if (header.toLowerCase().replace(/[^a-z0-9]/g, '') === pdfField.toLowerCase().replace(/[^a-z0-9]/g, '')) {
+      let cleanH = header.toLowerCase().replace(/[^a-z0-9]/g, '');
+      let cleanF = pdfField.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      if (cleanH === cleanF || cleanF.includes(cleanH) || cleanH.includes(cleanF)) {
         option.selected = true;
       }
       selector.appendChild(option);
@@ -332,44 +332,65 @@ async function processAndInjectData() {
   const rawText = document.getElementById('studentData').value.trim();
   const statusDiv = document.getElementById('status');
   const downloadArea = document.getElementById('downloadArea');
-
   downloadArea.innerHTML = "";
 
   if (!pdfBytesData || pdfFormFields.length === 0) {
     statusDiv.style.background = "#fff5f5";
     statusDiv.style.color = "#c53030";
-    statusDiv.innerHTML = "❌ Setup Blocked: Fillable PDF is required.";
+    statusDiv.innerHTML = "❌ Setup incomplete: Please upload your fillable PDF template first.";
     return;
   }
 
-  const lines = rawText.split('\n');
-  if (lines.length < 10) {
-    statusDiv.style.background = "#fff5f5";
-    statusDiv.style.color = "#c53030";
-    statusDiv.innerHTML = "❌ Error: Requires min 9 rows.";
-    return;
+  const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  
+  let startIndex = 0;
+  if (lines[0].toLowerCase().includes('matric') || lines[0].toLowerCase().includes('name') || lines[0].toLowerCase().includes('total')) {
+    startIndex = 1;
   }
 
   const students = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const values = lines[i].split(/\t|,/);
+  const delimiter = rawText.includes('\t') ? '\t' : rawText.includes(';') ? ';' : rawText.includes(',') ? ',' : null;
+
+  for (let i = startIndex; i < lines.length; i++) {
+    let values = [];
+    if (delimiter) { values = lines[i].split(delimiter); }
+    else { values = lines[i].split(/\s{2,}/); }
+    
+    values = values.map(v => v.trim().replace(/["']/g, ""));
     const student = {};
-    excelHeaders.forEach((header, index) => {
-      student[header] = values[index] ? values[index].trim() : "";
+    
+    excelHeaders.forEach((header, idx) => {
+      student[header] = values[idx] !== undefined ? values[idx] : "";
     });
     students.push(student);
   }
 
-  const totalSelector = Array.from(document.querySelectorAll('select'))
-                             .find(s => s.value.toLowerCase().includes('total') || s.value.toLowerCase().includes('score'));
-  
-  let targetTotalColumn = totalSelector ? totalSelector.value : excelHeaders.find(k => k.toLowerCase().includes('total') || k.toLowerCase().includes('score'));
+  let targetTotalColumn = null;
+  const mappingSchema = [];
 
-  if (!targetTotalColumn) {
+  pdfFormFields.forEach((field, index) => {
+    const selectorElement = document.getElementById(`map_select_field_${index}`);
+    if (selectorElement) {
+      const selectedColumnValue = selectorElement.value;
+      if (selectedColumnValue) {
+        mappingSchema.push({ pdfField: field, dataColumn: selectedColumnValue });
+        
+        let lowerField = field.toLowerCase();
+        if (lowerField.includes('total') || lowerField.includes('score') || selectedColumnValue.toLowerCase() === 'total') {
+          targetTotalColumn = selectedColumnValue;
+        }
+      }
+    }
+  });
+
+  if (!targetTotalColumn) { 
+    targetTotalColumn = excelHeaders.find(k => k.toLowerCase() === 'total'); 
+  }
+
+  if (!targetTotalColumn || !students[0] || students[0][targetTotalColumn] === undefined) {
     statusDiv.style.background = "#fff5f5";
     statusDiv.style.color = "#c53030";
-    statusDiv.innerHTML = "❌ Error: Map your Total Score field value via selectors.";
+    statusDiv.innerHTML = "❌ Execution Halted: Ensure Step 2's TOTAL score block selector is mapped to your final mark column.";
     return;
   }
 
@@ -382,20 +403,7 @@ async function processAndInjectData() {
   const targetStudents = [...high, ...medium, ...low];
 
   try {
-    statusDiv.style.background = "#f0fff4";
-    statusDiv.style.color = "#2f855a";
-    statusDiv.innerHTML = "🚀 Success! Complete student evaluation packet compiled. Download below:";
-
-    const nameSelector = Array.from(document.querySelectorAll('select')).find(s => s.value.toLowerCase() === 'name');
-    const nameColumnKey = nameSelector ? nameSelector.value : excelHeaders[0];
-
-    const mappingSchema = [];
-    pdfFormFields.forEach((field, index) => {
-      const linkedColumnValue = document.getElementById(`map_select_field_${index}`).value;
-      if (linkedColumnValue) {
-        mappingSchema.push({ pdfField: field, dataColumn: linkedColumnValue });
-      }
-    });
+    let successfullyFilledCount = 0;
 
     for (let index = 0; index < targetStudents.length; index++) {
       const student = targetStudents[index];
@@ -403,41 +411,17 @@ async function processAndInjectData() {
 
       const pdfDoc = await PDFLib.PDFDocument.load(pdfBytesData);
       const form = pdfDoc.getForm();
-      
-      const fontStyle = await pdfDoc.embedFont(PDFLib.StandardFonts.CourierBold);
 
       mappingSchema.forEach(schema => {
         try {
           const textField = form.getTextField(schema.pdfField);
-          textField.setText(student[schema.dataColumn] || '');
+          const valueToInject = student[schema.dataColumn] !== undefined ? String(student[schema.dataColumn]) : '';
           
-          const isMarkField = schema.dataColumn !== nameColumnKey && !schema.dataColumn.toLowerCase().includes('matric') && !schema.dataColumn.toLowerCase().includes('id');
-          
-          if (isMarkField) {
-            textField.updateFieldAppearances(fontStyle);
-            form.getFields().forEach(() => {
-              textField.acroField.getWidgets().forEach(widget => {
-                widget.getCharacteristics()
-                textField.setFontSize(16);
-              });
-            });
-            
-            const fillRedColor = PDFLib.rgb(1.0, 0.0, 0.0);
-            textField.acroField.getWidgets().forEach(widget => {
-              pdfDoc.context.assign(widget.dict, pdfDoc.context.obj({
-                DA: `/F1 16 Tf ${fillRedColor.r} ${fillRedColor.g} ${fillRedColor.b} rg`
-              }));
-            });
-          } else {
-            textField.setFontSize(12);
-            const fillBlackColor = PDFLib.rgb(0, 0, 0);
-            textField.acroField.getWidgets().forEach(widget => {
-              pdfDoc.context.assign(widget.dict, pdfDoc.context.obj({
-                DA: `/F1 12 Tf ${fillBlackColor.r} ${fillBlackColor.g} ${fillBlackColor.b} rg`
-              }));
-            });
+          if (valueToInject !== '') {
+            textField.setText(valueToInject);
+            successfullyFilledCount++;
           }
-        } catch(e) { console.warn("Field bypass: ", e); }
+        } catch(e) { console.warn("Field update skipped:", e); }
       });
 
       form.flatten();
@@ -446,20 +430,30 @@ async function processAndInjectData() {
       const blob = new Blob([outBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      const identifier = student[nameColumnKey] || (index + 1);
+      let studentIdentifier = student['NAME'] || student['name'] || student['MATRIC'] || student['matric'] || (index + 1);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${category}_Form_Rubric_${identifier}.pdf`;
+      a.download = `${category}_Form_Rubric_${studentIdentifier}.pdf`;
       a.className = "download-link";
-      a.innerHTML = `📄 Download ${category} Rubric (${identifier})`;
+      a.innerHTML = `📄 Download ${category} Rubric (${studentIdentifier})`;
       downloadArea.appendChild(a);
+    }
+
+    if (successfullyFilledCount === 0) {
+      statusDiv.style.background = "#fff5f5";
+      statusDiv.style.color = "#c53030";
+      statusDiv.innerHTML = "⚠️ Matching Deficit: Rubrics built, but data injection read 0. Please map Step 2 dropdown choices manually.";
+    } else {
+      statusDiv.style.background = "#f0fff4";
+      statusDiv.style.color = "#2f855a";
+      statusDiv.innerHTML = "🚀 Success! High-Medium-Low moderation packets compiled beautifully. Download links are active below:";
     }
 
   } catch(e) {
     console.error(e);
     statusDiv.style.background = "#fff5f5";
     statusDiv.style.color = "#c53030";
-    statusDiv.innerHTML = "❌ Form execution failed. Ensure PDF fields are editable.";
+    statusDiv.innerHTML = "❌ Generation Loop Aborted. Check data structures formatting patterns.";
   }
 }
 </script>
