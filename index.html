@@ -87,13 +87,12 @@
     color: #718096;
   }
 
-  /* USER ACCESS ENTRY COVER SCREEN */
+  /* MANDATORY VISUAL LOGIN GATEWAY LAYER MASK */
   .gatekeeper-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(26, 32, 44, 0.95); z-index: 9999;
+    background: rgba(26, 32, 44, 0.96); z-index: 9999;
     display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(8px);
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    backdrop-filter: blur(10px);
   }
   .gatekeeper-modal {
     background: white; width: 100%; max-width: 460px; padding: 35px;
@@ -115,8 +114,8 @@
 
 <div id="registrationLock" class="gatekeeper-overlay">
   <div class="gatekeeper-modal">
-    <h3>Welcome to 3HML Mapping Pro</h3>
-    <p>Please enter your details to activate the workspace.</p>
+    <h3>Activate Your Workspace</h3>
+    <p>Please log your details below to activate the 3HML Form-Mapping engine and access your grading station.</p>
     
     <label style="font-size: 13px; color: #4a5568;">Your Full Name</label>
     <input type="text" id="regName" class="gatekeeper-input" placeholder="e.g., Dr. Adam Smith" required />
@@ -133,8 +132,8 @@
 
 <div class="app-container">
   <div class="header">
-    <h2>3HML Mapping Pro</h2>
-    <p class="subtitle">Smart Data Mapping for Lecturers</p>
+    <h2>3HML Universal Form-Mapping Automator</h2>
+    <p class="subtitle">Bypasses drag coordinate errors by linking spreadsheet data columns directly to internal PDF fields.</p>
   </div>
   
   <div class="card">
@@ -168,7 +167,7 @@
   <div id="downloadArea" style="margin-top: 20px; text-align: center;"></div>
 
   <footer class="footer-copyright">
-    <p>&copy; <span id="currentYear"></span> Catherine Nguoi C. L. All rights reserved.</p>
+    <p>&copy; <span id="currentYear"></span> Your Institution. All rights reserved.</p>
     <p style="font-size: 11px; margin-top: 4px; color: #a0aec0;">Released under the MIT License. Powered by PDF-Lib Framework.</p>
   </footer>
 </div>
@@ -179,10 +178,9 @@ let pdfFormFields = [];
 let pdfBytesData = null;
 
 document.addEventListener("DOMContentLoaded", function() {
-  // Check if session token verification parameters are active
-  if (localStorage.getItem("3hml_verified_user") === "true") {
-    document.getElementById("registrationLock").style.display = "none";
-  }
+  // Clear any existing localStorage verification so the form ALWAYS prompts on reload
+  localStorage.removeItem("3hml_verified_user");
+  
   document.getElementById('currentYear').textContent = new Date().getFullYear();
   
   document.getElementById('activateBtn').addEventListener('click', handleWorkspaceActivation);
@@ -190,7 +188,7 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById('pdfFile').addEventListener('change', analysePdfTemplateForm);
   document.getElementById('headerInput').addEventListener('input', parseIsolatedHeaders);
   
-  // Set default raw sample layout matrix properties
+  // Set default raw baseline matrix entries
   const sampleData = "MATRIC\tNAME\tC1\tC2\tTOTAL\n" +
                      "A20EC001\tAli Bin Ahmad\t18\t19\t37\n" +
                      "A20EC002\tAbu Bakar\t10\t12\t22\n" +
@@ -216,20 +214,20 @@ function handleWorkspaceActivation() {
     return;
   }
 
-  // Clear overlay smoothly using non-intrusive style masks
-  localStorage.setItem("3hml_verified_user", "true");
-  document.getElementById("registrationLock").style.opacity = "0";
-  setTimeout(() => { 
-    document.getElementById("registrationLock").style.display = "none"; 
-  }, 300);
+  // Remove the gateway overlay to reveal the workstation layout
+  document.getElementById("registrationLock").style.display = "none";
 
-  // Hidden logger frame (replace with your Google Form URL endpoint if desired)
+  // ACTIVE LOGGING ENDPOINT DISPATCH LAYER TO GOOGLE FORMS
+  // Replace YOUR-FORM-ID-HERE and the entries IDs with your target form schema parameters
   const googleFormBaseURL = "https://docs.google.com/forms/d/e/1FAIpQLSfp-YOUR-FORM-ID-HERE/formResponse";
   const formData = new FormData();
   formData.append("entry.1749256444", name);
   formData.append("entry.1193898577", email);
   formData.append("entry.1016221176", school);
-  fetch(googleFormBaseURL, { method: "POST", mode: "no-cors", body: formData }).catch((e) => console.log("Init complete."));
+  
+  fetch(googleFormBaseURL, { method: "POST", mode: "no-cors", body: formData })
+    .then(() => console.log("Security data payload dispatched."))
+    .catch((e) => console.warn("Log tracker connection standby."));
 }
 
 function parseIsolatedHeaders() {
