@@ -73,7 +73,6 @@
   }
   .download-link:hover { background: #2b6cb0; }
 
-  /* UNIVERSAL FOOTER STYLE BLOCK */
   .footer-copyright {
     text-align: center;
     margin-top: 40px;
@@ -83,7 +82,7 @@
     color: #718096;
   }
 
-  /* --- GATEKEEPER REGISTRATION MODAL OVERLAY --- */
+  /* GATEKEEPER LOCK MODAL OVERLAY STYLE */
   .gatekeeper-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(26, 32, 44, 0.95); z-index: 9999;
@@ -123,14 +122,14 @@
     <label style="font-size: 13px; color: #4a5568;">Institution / University</label>
     <input type="text" id="regSchool" class="gatekeeper-input" placeholder="e.g., Universiti Teknologi Malaysia" required />
     
-    <button type="button" class="gatekeeper-btn" onclick="submitUserRegistration()">Activate Workspace</button>
+    <button type="button" id="activateBtn" class="gatekeeper-btn">Activate Workspace</button>
   </div>
 </div>
 
 <div class="app-container">
   <div class="header">
-    <h2>3HML Universal Form-Mapping Automator</h2>
-    <p class="subtitle">Smart Data Mapping for Busy Lecturers.</p>
+    <h2>3HML Mapping Pro</h2>
+    <p class="subtitle">Smart Data Mapping for Lecturers.</p>
   </div>
   
   <div class="card">
@@ -151,7 +150,7 @@
   <div class="card">
     <div class="input-group">
       <label for="studentData">Step 3: Paste Your Student Scores Matrix</label>
-      <textarea id="studentData" rows="8" oninput="extractSpreadsheetHeaders()"></textarea>
+      <textarea id="studentData" rows="8"></textarea>
       <small style="color: #718096; margin-top: 4px; display: block;">Ensure columns include Name, Matric Number, individual criteria, and a Total Score.</small>
     </div>
 
@@ -162,7 +161,7 @@
   <div id="downloadArea" style="margin-top: 20px; text-align: center;"></div>
 
   <footer class="footer-copyright">
-    <p>&copy; <span id="currentYear"></span> Catherine Nguoi C. L. All rights reserved.</p>
+    <p>&copy; <span id="currentYear"></span> Catherine N. C. L. All rights reserved.</p>
     <p style="font-size: 11px; margin-top: 4px; color: #a0aec0;">Released under the MIT License. Powered by PDF-Lib Framework.</p>
     
     <div style="margin-top: 12px;">
@@ -177,10 +176,290 @@ let pdfFormFields = [];
 let pdfBytesData = null;
 
 document.addEventListener("DOMContentLoaded", function() {
-  // Check if the user has already registered in this browser session
+  // Check browser session cache storage token to bypass double authorization prompts
   if (localStorage.getItem("3hml_verified_user") === "true") {
     document.getElementById("registrationLock").style.display = "none";
   }
 
   document.getElementById('currentYear').textContent = new Date().getFullYear();
-  document.getElementById('processBtn').addEventListener('click',
+  
+  // Attach safe click event listeners natively bypassing global script namespace drops
+  document.getElementById('activateBtn').addEventListener('click', handleWorkspaceActivation);
+  document.getElementById('processBtn').addEventListener('click', processAndInjectData);
+  document.getElementById('pdfFile').addEventListener('change', analysePdfTemplateForm);
+  document.getElementById('studentData').addEventListener('input', extractSpreadsheetHeaders);
+  
+  const sampleData = "Name\tMatric\tCriterion 1\tCriterion 2\tCriterion 3\tTotal Score\n" +
+                     "Ali\tA101\t18\t19\t15\t52\n" +
+                     "Abu\tA102\t10\t12\t11\t33\n" +
+                     "Siti\tA103\t20\t20\t19\t59\n" +
+                     "John\tA104\t15\t15\t14\t44\n" +
+                     "Doe\tA105\t8\t10\t7\t25\n" +
+                     "Alex\tA106\t17\t18\t16\t51\n" +
+                     "Mary\tA107\t12\t11\t10\t33\n" +
+                     "Lee\tA108\t19\t19\t18\t56\n" +
+                     "Tan\tA109\t14\t13\t12\t39\n" +
+                     "Zac\tA110\t11\t10\t9\t30";
+  document.getElementById('studentData').value = sampleData;
+  extractSpreadsheetHeaders();
+});
+
+// UPGRADED RESTRUCTURED ACTIVATION CONTROLLER
+function handleWorkspaceActivation() {
+  const name = document.getElementById("regName").value.trim();
+  const email = document.getElementById("regEmail").value.trim();
+  const school = document.getElementById("regSchool").value.trim();
+
+  if (!name || !email || !school) {
+    alert("Please fill in all fields to activate your academic access workspace.");
+    return;
+  }
+
+  // Lift veil interface overlay immediately
+  localStorage.setItem("3hml_verified_user", "true");
+  document.getElementById("registrationLock").style.opacity = "0";
+  setTimeout(() => {
+    document.getElementById("registrationLock").style.display = "none";
+  }, 300);
+
+  // Send logging profile data payload over background channel links smoothly
+  const googleFormBaseURL = "https://docs.google.com/forms/d/e/1FAIpQLSfp-YOUR-FORM-ID-HERE/formResponse";
+  
+  const formData = new FormData();
+  formData.append("entry.1749256444", name);
+  formData.append("entry.1193898577", email);
+  formData.append("entry.1016221176", school);
+
+  fetch(googleFormBaseURL, {
+    method: "POST",
+    mode: "no-cors",
+    body: formData
+  }).catch((e) => console.log("Silent background track active."));
+}
+
+function extractSpreadsheetHeaders() {
+  const rawText = document.getElementById('studentData').value.trim();
+  if (!rawText) return;
+
+  const firstLine = rawText.split('\n')[0];
+  excelHeaders = firstLine.split(/\t|,/).map(h => h.trim()).filter(h => h.length > 0);
+  
+  if (pdfFormFields.length > 0) {
+    renderFieldDropdownInterface();
+  }
+}
+
+async function analysePdfTemplateForm(event) {
+  const file = this.files[0];
+  if (!file) return;
+
+  const statusDiv = document.getElementById('status');
+  statusDiv.style.background = "#fffaf0";
+  statusDiv.style.color = "#dd6b20";
+  statusDiv.innerHTML = "⏳ Reading layout map files and indexing tracking strings...";
+
+  try {
+    pdfBytesData = await new Promise((resolve) => {
+      const r = new FileReader(); r.onload = () => resolve(r.result); r.readAsArrayBuffer(file);
+    });
+
+    const pdfDoc = await PDFLib.PDFDocument.load(pdfBytesData);
+    const form = pdfDoc.getForm();
+    
+    pdfFormFields = form.getFields().map(f => f.getName());
+
+    if (pdfFormFields.length === 0) {
+      statusDiv.style.background = "#fff5f5";
+      statusDiv.style.color = "#c53030";
+      statusDiv.innerHTML = "❌ File Error: Your PDF is flat. Go to Sejda.com or Adobe Acrobat to create empty form textboxes before using this tool.";
+      document.getElementById('mapperCard').style.display = "none";
+      return;
+    }
+
+    statusDiv.style.background = "#f0fff4";
+    statusDiv.style.color = "#2f855a";
+    statusDiv.innerHTML = `✅ Successfully connected to ${pdfFormFields.length} file fields.`;
+    
+    document.getElementById('mapperCard').style.display = "block";
+    renderFieldDropdownInterface();
+
+  } catch (err) {
+    console.error(err);
+    statusDiv.style.background = "#fff5f5";
+    statusDiv.style.color = "#c53030";
+    statusDiv.innerHTML = "❌ Template Parsing Error. Check file encoding.";
+  }
+}
+
+function renderFieldDropdownInterface() {
+  const container = document.getElementById('dynamicMapperContainer');
+  container.innerHTML = "";
+
+  pdfFormFields.forEach((pdfField, index) => {
+    const row = document.createElement('div');
+    row.className = "mapper-row";
+
+    const labelSpan = document.createElement('span');
+    labelSpan.innerHTML = pdfField;
+    row.appendChild(labelSpan);
+
+    const selector = document.createElement('select');
+    selector.id = `map_select_field_${index}`;
+    selector.setAttribute('data-pdf-field-target', pdfField);
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = "";
+    defaultOption.innerHTML = "-- Leave Blank / Do Not Map --";
+    selector.appendChild(defaultOption);
+
+    excelHeaders.forEach(header => {
+      const option = document.createElement('option');
+      option.value = header;
+      option.innerHTML = `Spreadsheet Column: ${header}`;
+      
+      if (header.toLowerCase().replace(/[^a-z0-9]/g, '') === pdfField.toLowerCase().replace(/[^a-z0-9]/g, '')) {
+        option.selected = true;
+      }
+      selector.appendChild(option);
+    });
+
+    row.appendChild(selector);
+    container.appendChild(row);
+  });
+}
+
+async function processAndInjectData() {
+  const rawText = document.getElementById('studentData').value.trim();
+  const statusDiv = document.getElementById('status');
+  const downloadArea = document.getElementById('downloadArea');
+
+  downloadArea.innerHTML = "";
+
+  if (!pdfBytesData || pdfFormFields.length === 0) {
+    statusDiv.style.background = "#fff5f5";
+    statusDiv.style.color = "#c53030";
+    statusDiv.innerHTML = "❌ Setup Blocked: Fillable PDF is required.";
+    return;
+  }
+
+  const lines = rawText.split('\n');
+  if (lines.length < 10) {
+    statusDiv.style.background = "#fff5f5";
+    statusDiv.style.color = "#c53030";
+    statusDiv.innerHTML = "❌ Error: Requires min 9 rows.";
+    return;
+  }
+
+  const students = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = lines[i].split(/\t|,/);
+    const student = {};
+    excelHeaders.forEach((header, index) => {
+      student[header] = values[index] ? values[index].trim() : "";
+    });
+    students.push(student);
+  }
+
+  const totalSelector = Array.from(document.querySelectorAll('select'))
+                             .find(s => s.value.toLowerCase().includes('total') || s.value.toLowerCase().includes('score'));
+  
+  let targetTotalColumn = totalSelector ? totalSelector.value : excelHeaders.find(k => k.toLowerCase().includes('total') || k.toLowerCase().includes('score'));
+
+  if (!targetTotalColumn) {
+    statusDiv.style.background = "#fff5f5";
+    statusDiv.style.color = "#c53030";
+    statusDiv.innerHTML = "❌ Error: Map your Total Score field value via selectors.";
+    return;
+  }
+
+  students.sort((a, b) => Number(b[targetTotalColumn]) - Number(a[targetTotalColumn]));
+
+  const high = students.slice(0, 3);
+  const low = students.slice(-3);
+  const midIndex = Math.floor(students.length / 2);
+  const medium = students.slice(midIndex - 1, midIndex + 2);
+  const targetStudents = [...high, ...medium, ...low];
+
+  try {
+    statusDiv.style.background = "#f0fff4";
+    statusDiv.style.color = "#2f855a";
+    statusDiv.innerHTML = "🚀 Success! Complete student evaluation packet compiled. Download below:";
+
+    const nameSelector = Array.from(document.querySelectorAll('select')).find(s => s.value.toLowerCase() === 'name');
+    const nameColumnKey = nameSelector ? nameSelector.value : excelHeaders[0];
+
+    const mappingSchema = [];
+    pdfFormFields.forEach((field, index) => {
+      const linkedColumnValue = document.getElementById(`map_select_field_${index}`).value;
+      if (linkedColumnValue) {
+        mappingSchema.push({ pdfField: field, dataColumn: linkedColumnValue });
+      }
+    });
+
+    for (let index = 0; index < targetStudents.length; index++) {
+      const student = targetStudents[index];
+      let category = index < 3 ? "High" : index < 6 ? "Medium" : "Low";
+
+      const pdfDoc = await PDFLib.PDFDocument.load(pdfBytesData);
+      const form = pdfDoc.getForm();
+      
+      const fontStyle = await pdfDoc.embedFont(PDFLib.StandardFonts.CourierBold);
+
+      mappingSchema.forEach(schema => {
+        try {
+          const textField = form.getTextField(schema.pdfField);
+          textField.setText(student[schema.dataColumn] || '');
+          
+          const isMarkField = schema.dataColumn !== nameColumnKey && !schema.dataColumn.toLowerCase().includes('matric') && !schema.dataColumn.toLowerCase().includes('id');
+          
+          if (isMarkField) {
+            textField.updateFieldAppearances(fontStyle);
+            form.getFields().forEach(() => {
+              textField.acroField.getWidgets().forEach(widget => {
+                widget.getCharacteristics()
+                textField.setFontSize(16);
+              });
+            });
+            
+            const fillRedColor = PDFLib.rgb(1.0, 0.0, 0.0);
+            textField.acroField.getWidgets().forEach(widget => {
+              pdfDoc.context.assign(widget.dict, pdfDoc.context.obj({
+                DA: `/F1 16 Tf ${fillRedColor.r} ${fillRedColor.g} ${fillRedColor.b} rg`
+              }));
+            });
+          } else {
+            textField.setFontSize(12);
+            const fillBlackColor = PDFLib.rgb(0, 0, 0);
+            textField.acroField.getWidgets().forEach(widget => {
+              pdfDoc.context.assign(widget.dict, pdfDoc.context.obj({
+                DA: `/F1 12 Tf ${fillBlackColor.r} ${fillBlackColor.g} ${fillBlackColor.b} rg`
+              }));
+            });
+          }
+        } catch(e) { console.warn("Field bypass: ", e); }
+      });
+
+      form.flatten();
+
+      const outBytes = await pdfDoc.save();
+      const blob = new Blob([outBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+
+      const identifier = student[nameColumnKey] || (index + 1);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${category}_Form_Rubric_${identifier}.pdf`;
+      a.className = "download-link";
+      a.innerHTML = `📄 Download ${category} Rubric (${identifier})`;
+      downloadArea.appendChild(a);
+    }
+
+  } catch(e) {
+    console.error(e);
+    statusDiv.style.background = "#fff5f5";
+    statusDiv.style.color = "#c53030";
+    statusDiv.innerHTML = "❌ Form execution failed. Ensure PDF fields are editable.";
+  }
+}
+</script>
